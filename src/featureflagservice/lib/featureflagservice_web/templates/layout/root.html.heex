@@ -34,6 +34,7 @@
           <ul>
             <li><%= link "List feature flags", to: Routes.feature_flag_path(@conn, :index) %></li>
             <li><%= link "New feature flag", to: Routes.feature_flag_path(@conn, :new) %></li>
+            <li><%= link "Toggle feature flag", to: Routes.feature_flag_path(@conn, :toggle) %></li>
           </ul>
         </nav>
         <a href="/feature" class="button">

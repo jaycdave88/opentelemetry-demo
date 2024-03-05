@@ -22,6 +22,8 @@ defmodule FeatureflagserviceWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :index
-    resources "/featureflags", FeatureFlagController
+    get "/featureflags/toggle", FeatureFlagController, :toggle
+    post "/featureflags/:name/toggle", FeatureFlagController, :toggle
+    resources "/featureflags", FeatureFlagController, param: "name"
   end
 end

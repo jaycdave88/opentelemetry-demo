@@ -46,3 +46,24 @@ liveSocket.connect()
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
 
+// Function to handle the toggle change event
+function handleToggleChange(event) {
+    const checkbox = event.target;
+    const enabledValue = checkbox.checked ? 1.0 : 0.0;
+    console.log(`Feature flag ${checkbox.id} set to: ${enabledValue}`);
+  
+    // Update the hidden input to reflect the new state
+    const hiddenInput = document.querySelector(`input[type="hidden"][name="${checkbox.getAttribute('name')}"]`);
+    if (hiddenInput) {
+      hiddenInput.value = enabledValue;
+    }
+  }
+  
+  document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll('.switch input[type="checkbox"]').forEach(function(checkbox) {
+      checkbox.addEventListener('change', function(e) {
+        let enabledValue = e.target.checked ? "1.0" : "0.0";
+        console.log(`Feature flag ${e.target.id} set to: ${enabledValue}`);
+      });
+    });
+  });
