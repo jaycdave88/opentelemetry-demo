@@ -65,7 +65,17 @@ const CartProvider = ({ children }: IProps) => {
   );
   const emptyCart = useCallback(() => emptyCartMutation.mutateAsync(), [emptyCartMutation]);
   const placeOrder = useCallback(
-    (order: PlaceOrderRequest) => placeOrderMutation.mutateAsync({ ...order, currencyCode: selectedCurrency }),
+    async (order: PlaceOrderRequest) => {
+      try {
+        console.log('[Cart Provider] Calling placeOrder with:', order);
+        const result = await placeOrderMutation.mutateAsync({ ...order, currencyCode: selectedCurrency });
+        console.log('[Cart Provider] placeOrder result:', result);
+        return result;
+      } catch (error) {
+        console.log('[Cart Provider] placeOrder error:', error);
+        throw error;
+      }
+    },
     [placeOrderMutation, selectedCurrency]
   );
 

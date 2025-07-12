@@ -18,4 +18,4 @@ datasources:
       logMessageField: body
       pplEnabled: true
       timeField: observedTimestamp
-      version: 2.19.0
+      version: 2.8.0

@@ -18,6 +18,8 @@ const request = async <T>({
     'content-type': 'application/json',
   },
 }: IRequestParams): Promise<T> => {
+  console.log(`[Request] ${method} ${url}`, { body, queryParams });
+
   const response = await fetch(`${url}?${new URLSearchParams(queryParams).toString()}`, {
     method,
     body: body ? JSON.stringify(body) : undefined,
@@ -26,7 +28,33 @@ const request = async <T>({
 
   const responseText = await response.text();
 
-  if (!!responseText) return JSON.parse(responseText);
+  console.log(`[Request] Response status: ${response.status}, ok: ${response.ok}`);
+  console.log(`[Request] Response text:`, responseText);
+
+  if (!response.ok) {
+    // Try to parse error response as JSON
+    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    if (responseText) {
+      try {
+        const errorData = JSON.parse(responseText);
+        console.log(`[Request] Parsed error data:`, errorData);
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // If JSON parsing fails, use the raw response text
+        errorMessage = responseText;
+      }
+    }
+    console.log(`[Request] Throwing error:`, errorMessage);
+    throw new Error(errorMessage);
+  }
+
+  if (!!responseText) {
+    const parsedResponse = JSON.parse(responseText);
+    console.log(`[Request] Parsed response:`, parsedResponse);
+    return parsedResponse;
+  }
 
   return undefined as unknown as T;
 };

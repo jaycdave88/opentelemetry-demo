@@ -1,12 +1,14 @@
 # Copyright The OpenTelemetry Authors
 # SPDX-License-Identifier: Apache-2.0
 
-x-default-logging: &logging
-  driver: "json-file"
-  options:
-    max-size: "5m"
-    max-file: "2"
-    tag: "{{.Name}}"
+x-defaults: &defaults
+  platform: linux/arm64
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "5m"
+      max-file: "2"
+      tag: "{{.Name}}"
 
 networks:
   default:
@@ -19,6 +21,7 @@ services:
   # ******************
   # Accounting service
   accounting:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-accounting
     container_name: accounting
     build:
@@ -42,10 +45,10 @@ services:
         condition: service_started
       kafka:
         condition: service_healthy
-    logging: *logging
 
   # AdService
   ad:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-ad
     container_name: ad
     build:
@@ -78,10 +81,10 @@ services:
         condition: service_started
       flagd:
         condition: service_started
-    logging: *logging
 
   # Cart service
   cart:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-cart
     container_name: cart
     build:
@@ -112,10 +115,10 @@ services:
         condition: service_started
       flagd:
         condition: service_started
-    logging: *logging
 
   # Checkout service
   checkout:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-checkout
     container_name: checkout
     build:
@@ -164,10 +167,10 @@ services:
         condition: service_healthy
       flagd:
         condition: service_started
-    logging: *logging
 
   # Currency service
   currency:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-currency
     container_name: currency
     build:
@@ -192,10 +195,10 @@ services:
     depends_on:
       otel-collector:
         condition: service_started
-    logging: *logging
 
   # Email service
   email:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-email
     container_name: email
     build:
@@ -219,10 +222,10 @@ services:
     depends_on:
       otel-collector:
         condition: service_started
-    logging: *logging
 
   # Fraud Detection service
   fraud-detection:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-fraud-detection
     container_name: fraud-detection
     build:
@@ -252,10 +255,10 @@ services:
         condition: service_started
       kafka:
         condition: service_healthy
-    logging: *logging
 
   # Frontend
   frontend:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-frontend
     container_name: frontend
     build:
@@ -280,6 +283,7 @@ services:
       - PRODUCT_CATALOG_ADDR
       - RECOMMENDATION_ADDR
       - SHIPPING_ADDR
+      - SUPPORT_ADDR
       - OTEL_EXPORTER_OTLP_ENDPOINT
       - OTEL_RESOURCE_ATTRIBUTES=${OTEL_RESOURCE_ATTRIBUTES}
       - ENV_PLATFORM
@@ -313,10 +317,10 @@ services:
         condition: service_started
       flagd:
         condition: service_started
-    logging: *logging
 
   # Frontend Proxy (Envoy)
   frontend-proxy:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-frontend-proxy
     container_name: frontend-proxy
     build:
@@ -366,6 +370,7 @@ services:
 
   # image-provider
   image-provider:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-image-provider
     container_name: image-provider
     build:
@@ -389,10 +394,10 @@ services:
     depends_on:
       otel-collector:
         condition: service_started
-    logging: *logging
 
   # Load Generator
   load-generator:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-load-generator
     container_name: load-generator
     build:
@@ -427,10 +432,10 @@ services:
         condition: service_started
       flagd:
         condition: service_started
-    logging: *logging
 
   # Payment service
   payment:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-payment
     container_name: payment
     build:
@@ -458,10 +463,10 @@ services:
         condition: service_started
       flagd:
         condition: service_started
-    logging: *logging
 
   # Product Catalog service
   product-catalog:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-product-catalog
     container_name: product-catalog
     build:
@@ -492,10 +497,10 @@ services:
         condition: service_started
       flagd:
         condition: service_started
-    logging: *logging
 
   # Quote service
   quote:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-quote
     container_name: quote
     build:
@@ -520,10 +525,10 @@ services:
     depends_on:
       otel-collector:
         condition: service_started
-    logging: *logging
 
   # Recommendation service
   recommendation:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-recommendation
     container_name: recommendation
     build:
@@ -556,10 +561,10 @@ services:
         condition: service_started
       flagd:
         condition: service_started
-    logging: *logging
 
   # Shipping service
   shipping:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-shipping
     container_name: shipping
     build:
@@ -583,13 +588,45 @@ services:
     depends_on:
       otel-collector:
         condition: service_started
-    logging: *logging
+
+  # Support service
+  support:
+    <<: *defaults
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-support
+    container_name: support
+    build:
+      context: ./
+      dockerfile: ${SUPPORT_DOCKERFILE}
+      cache_from:
+        - ${IMAGE_NAME}:${IMAGE_VERSION}-support
+    deploy:
+      resources:
+        limits:
+          memory: 20M
+    restart: unless-stopped
+    ports:
+      - "${SUPPORT_PORT}"
+    environment:
+      - SUPPORT_PORT
+      - JIRA_URL
+      - JIRA_USERNAME
+      - JIRA_API_TOKEN
+      - JIRA_PROJECT
+      - SLACK_WEBHOOK_URL
+      - SLACK_CHANNEL
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://${OTEL_COLLECTOR_HOST}:${OTEL_COLLECTOR_PORT_GRPC}
+      - OTEL_RESOURCE_ATTRIBUTES
+      - OTEL_SERVICE_NAME=support
+    depends_on:
+      otel-collector:
+        condition: service_started
 
   # ******************
   # Dependent Services
   # ******************
   # Flagd, feature flagging service
   flagd:
+    <<: *defaults
     image: ${FLAGD_IMAGE}
     container_name: flagd
     deploy:
@@ -612,11 +649,10 @@ services:
       - "${FLAGD_OFREP_PORT}"
     volumes:
       - ./src/flagd:/etc/flagd
-    logging:
-      *logging
 
   # Flagd UI for configuring the feature flag service
   flagd-ui:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-flagd-ui
     container_name: flagd-ui
     build:
@@ -644,6 +680,7 @@ services:
 
   # Kafka used by Checkout, Accounting, and Fraud Detection services
   kafka:
+    <<: *defaults
     image: ${IMAGE_NAME}:${DEMO_VERSION}-kafka
     container_name: kafka
     build:
@@ -673,10 +710,10 @@ services:
       interval: 5s
       timeout: 10s
       retries: 10
-    logging: *logging
 
   # Valkey used by Cart service
   valkey-cart:
+    <<: *defaults
     image: ${VALKEY_IMAGE}
     container_name: valkey-cart
     user: valkey
@@ -687,7 +724,6 @@ services:
     restart: unless-stopped
     ports:
       - "${VALKEY_PORT}"
-    logging: *logging
 
 
   # ********************
@@ -695,6 +731,7 @@ services:
   # ********************
   # Jaeger
   jaeger:
+    <<: *defaults
     image: ${JAEGERTRACING_IMAGE}
     container_name: jaeger
     command:
@@ -713,10 +750,10 @@ services:
       - "${OTEL_COLLECTOR_PORT_GRPC}"
     environment:
       - METRICS_STORAGE_TYPE=prometheus
-    logging: *logging
 
   # Grafana
   grafana:
+    <<: *defaults
     image: ${GRAFANA_IMAGE}
     container_name: grafana
     deploy:
@@ -731,10 +768,10 @@ services:
       - ./src/grafana/provisioning/:/etc/grafana/provisioning/
     ports:
       - "${GRAFANA_PORT}"
-    logging: *logging
 
   # OpenTelemetry Collector
   otel-collector:
+    <<: *defaults
     image: ${COLLECTOR_CONTRIB_IMAGE}
     container_name: otel-collector
     deploy:
@@ -757,7 +794,6 @@ services:
         condition: service_started
       opensearch:
         condition: service_healthy
-    logging: *logging
     environment:
       - ENVOY_PORT
       - HOST_FILESYSTEM
@@ -768,6 +804,7 @@ services:
 
   # Prometheus
   prometheus:
+    <<: *defaults
     image: ${PROMETHEUS_IMAGE}
     container_name: prometheus
     command:
@@ -789,10 +826,10 @@ services:
     restart: unless-stopped
     ports:
       - "${PROMETHEUS_PORT}:${PROMETHEUS_PORT}"
-    logging: *logging
 
   # OpenSearch
   opensearch:
+    <<: *defaults
     image: ${OPENSEARCH_IMAGE}
     container_name: opensearch
     deploy:
@@ -825,4 +862,3 @@ services:
       interval: 5s
       timeout: 10s
       retries: 10
-    logging: *logging

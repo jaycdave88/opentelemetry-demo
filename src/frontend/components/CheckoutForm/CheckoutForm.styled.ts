@@ -57,3 +57,32 @@ export const EmptyCartButton = styled(Button)`
     width: inherit;
   }
 `;
+
+export const ErrorMessage = styled.div`
+  background-color: #fee;
+  border: 1px solid #fcc;
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin: 16px 0;
+  color: #c33;
+  font-size: 14px;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+export const SupportButton = styled.button`
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  align-self: flex-start;
+
+  &:hover {
+    background-color: #0056b3;
+  }
+`;

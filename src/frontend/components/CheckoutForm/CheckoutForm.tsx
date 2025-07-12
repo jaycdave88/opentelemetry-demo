@@ -4,7 +4,9 @@
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { CypressFields } from '../../utils/Cypress';
+import { IProductCartItem } from '../../types/Cart';
 import Input from '../Input';
+import SupportRequestForm, { ISupportRequestData } from '../SupportRequestForm';
 import * as S from './CheckoutForm.styled';
 
 const currentYear = new Date().getFullYear();
@@ -25,9 +27,20 @@ export interface IFormData {
 
 interface IProps {
   onSubmit(formData: IFormData): void;
+  isSubmitting?: boolean;
+  error?: string | null;
+  onSupportRequest?(data: ISupportRequestData): void;
+  cartItems?: IProductCartItem[];
 }
 
-const CheckoutForm = ({ onSubmit }: IProps) => {
+const CheckoutForm = ({
+  onSubmit,
+  isSubmitting = false,
+  error,
+  onSupportRequest,
+  cartItems = []
+}: IProps) => {
+  const [showSupportForm, setShowSupportForm] = useState(false);
   const [
     {
       email,
@@ -62,8 +75,24 @@ const CheckoutForm = ({ onSubmit }: IProps) => {
     }));
   }, []);
 
+  const handleSupportRequest = useCallback((data: ISupportRequestData) => {
+    if (onSupportRequest) {
+      onSupportRequest(data);
+    }
+    setShowSupportForm(false);
+  }, [onSupportRequest]);
+
+  const handleShowSupportForm = useCallback(() => {
+    setShowSupportForm(true);
+  }, []);
+
+  const handleCloseSupportForm = useCallback(() => {
+    setShowSupportForm(false);
+  }, []);
+
   return (
-    <S.CheckoutForm
+    <>
+      <S.CheckoutForm
       onSubmit={(event: { preventDefault: () => void; }) => {
         event.preventDefault();
         onSubmit({
@@ -189,13 +218,41 @@ const CheckoutForm = ({ onSubmit }: IProps) => {
         />
       </S.CardRow>
 
+      {error && (
+        <S.ErrorMessage>
+          {error}
+          {onSupportRequest && (
+            <S.SupportButton type="button" onClick={handleShowSupportForm}>
+              Need Help?
+            </S.SupportButton>
+          )}
+        </S.ErrorMessage>
+      )}
+
       <S.SubmitContainer>
         <Link href="/">
           <S.CartButton $type="secondary">Continue Shopping</S.CartButton>
         </Link>
-        <S.CartButton data-cy={CypressFields.CheckoutPlaceOrder} type="submit">Place Order</S.CartButton>
+        <S.CartButton
+          data-cy={CypressFields.CheckoutPlaceOrder}
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Processing...' : 'Place Order'}
+        </S.CartButton>
       </S.SubmitContainer>
     </S.CheckoutForm>
+
+    {showSupportForm && (
+      <SupportRequestForm
+        onSubmit={handleSupportRequest}
+        onCancel={handleCloseSupportForm}
+        errorMessage={error || undefined}
+        failedItems={cartItems}
+        isSubmitting={isSubmitting}
+      />
+    )}
+    </>
   );
 };
 

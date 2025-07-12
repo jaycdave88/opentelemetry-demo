@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -263,7 +264,21 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+	log.Infof("[DEBUG] Order preparation completed: %d items prepared", len(prep.orderItems))
 	span.AddEvent("prepared")
+
+	// Check for expensive items if feature flag is enabled
+	log.Infof("[DEBUG] About to call checkExpensiveItems with %d items", len(prep.orderItems))
+	if err := cs.checkExpensiveItems(ctx, prep.orderItems); err != nil {
+		span.AddEvent("checkout_failed_expensive_items", trace.WithAttributes(
+			attribute.String("failure.reason", err.Error()),
+		))
+
+		// Create detailed technical error for bug reporting
+		technicalDetails := cs.generateTechnicalErrorDetails(ctx, prep, err)
+
+		return nil, status.Errorf(codes.FailedPrecondition, "Order contains expensive items: %v\n\nTECHNICAL_DETAILS:%s", err, technicalDetails)
+	}
 
 	total := &pb.Money{CurrencyCode: req.UserCurrency,
 		Units: 0,
@@ -608,4 +623,154 @@ func (cs *checkout) getIntFeatureFlag(ctx context.Context, featureFlagName strin
 	)
 
 	return int(featureFlagValue)
+}
+
+func (cs *checkout) checkExpensiveItems(ctx context.Context, orderItems []*pb.OrderItem) error {
+	// Get the price threshold from feature flag
+	priceThreshold := cs.getIntFeatureFlag(ctx, "checkoutFailureThreshold")
+
+	log.Infof("[DEBUG] checkExpensiveItems called with %d items, threshold: %d", len(orderItems), priceThreshold)
+
+	// If threshold is 0, feature is disabled
+	if priceThreshold == 0 {
+		log.Infof("[DEBUG] Feature disabled (threshold=0), skipping expensive items check")
+		return nil
+	}
+
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(
+		attribute.Int("app.checkout.price_threshold", priceThreshold),
+	)
+
+	for _, item := range orderItems {
+		// Convert price to USD for comparison (threshold is in USD)
+		priceUSD, err := cs.currencySvcClient.Convert(ctx, &pb.CurrencyConversionRequest{
+			From:   item.Cost,
+			ToCode: "USD",
+		})
+		if err != nil {
+			log.Warnf("Failed to convert price to USD for threshold check: %v", err)
+			// Continue with original price if conversion fails
+			priceUSD = item.Cost
+		}
+
+		// Calculate total price in USD (units + nanos)
+		totalPriceUSD := float64(priceUSD.Units) + float64(priceUSD.Nanos)/1e9
+
+		if totalPriceUSD > float64(priceThreshold) {
+			span.AddEvent("expensive_item_detected", trace.WithAttributes(
+				attribute.String("app.product.id", item.Item.ProductId),
+				attribute.Float64("app.product.price_usd", totalPriceUSD),
+				attribute.Int("app.checkout.threshold", priceThreshold),
+			))
+
+			return fmt.Errorf("item %s costs $%.2f which exceeds the threshold of $%d",
+				item.Item.ProductId, totalPriceUSD, priceThreshold)
+		}
+	}
+
+	return nil
+}
+
+func (cs *checkout) generateTechnicalErrorDetails(ctx context.Context, prep orderPrep, originalErr error) string {
+	span := trace.SpanFromContext(ctx)
+
+	// Get feature flag configuration
+	priceThreshold := cs.getIntFeatureFlag(ctx, "checkoutFailureThreshold")
+
+	// Build comprehensive technical report
+	var details strings.Builder
+
+	details.WriteString("\n\n=== TECHNICAL BUG REPORT ===\n")
+	details.WriteString("ISSUE: Checkout failure due to expensive items blocking order completion\n")
+	details.WriteString("SEVERITY: HIGH - Business Logic Error\n")
+	details.WriteString("COMPONENT: Checkout Service (src/checkout/main.go)\n\n")
+
+	// Error Analysis
+	details.WriteString("ERROR ANALYSIS:\n")
+	details.WriteString(fmt.Sprintf("- Original Error: %s\n", originalErr.Error()))
+	details.WriteString(fmt.Sprintf("- Error Location: checkExpensiveItems() function, line ~650\n"))
+	details.WriteString(fmt.Sprintf("- Failure Point: PlaceOrder() method, line ~270\n"))
+	details.WriteString(fmt.Sprintf("- Feature Flag: checkoutFailureThreshold = %d\n", priceThreshold))
+	details.WriteString("- Error Type: Business logic validation failure\n\n")
+
+	// System Context
+	details.WriteString("SYSTEM CONTEXT:\n")
+	details.WriteString(fmt.Sprintf("- Service: checkout-service\n"))
+	details.WriteString(fmt.Sprintf("- Method: PlaceOrder (gRPC)\n"))
+	details.WriteString(fmt.Sprintf("- Trace ID: %s\n", span.SpanContext().TraceID().String()))
+	details.WriteString(fmt.Sprintf("- Span ID: %s\n", span.SpanContext().SpanID().String()))
+	details.WriteString(fmt.Sprintf("- User Currency: %s\n", prep.orderItems[0].Cost.CurrencyCode))
+	details.WriteString(fmt.Sprintf("- Total Items: %d\n", len(prep.orderItems)))
+
+	// Detailed Item Analysis
+	details.WriteString("\nITEM ANALYSIS:\n")
+	for i, item := range prep.orderItems {
+		priceUSD := float64(item.Cost.Units) + float64(item.Cost.Nanos)/1e9
+		details.WriteString(fmt.Sprintf("- Item %d: %s\n", i+1, item.Item.ProductId))
+		details.WriteString(fmt.Sprintf("  * Price: $%.2f USD\n", priceUSD))
+		details.WriteString(fmt.Sprintf("  * Quantity: %d\n", item.Item.Quantity))
+		details.WriteString(fmt.Sprintf("  * Exceeds Threshold: %t (threshold: $%d)\n", priceUSD > float64(priceThreshold), priceThreshold))
+	}
+
+	// Stack Trace Simulation
+	details.WriteString("\nCALL STACK:\n")
+	details.WriteString("1. frontend/pages/api/checkout.ts:25 - POST /api/checkout\n")
+	details.WriteString("2. frontend/gateways/Api.gateway.ts:45 - ApiGateway.placeOrder()\n")
+	details.WriteString("3. checkout/main.go:250 - PlaceOrder() gRPC method\n")
+	details.WriteString("4. checkout/main.go:270 - checkExpensiveItems() validation\n")
+	details.WriteString("5. checkout/main.go:650 - Price threshold comparison\n")
+
+	// Root Cause Analysis
+	details.WriteString("\nROOT CAUSE ANALYSIS:\n")
+	details.WriteString("The checkout service implements a business rule that prevents orders\n")
+	details.WriteString("containing items above a configurable price threshold. This is controlled\n")
+	details.WriteString("by the 'checkoutFailureThreshold' feature flag.\n\n")
+	details.WriteString("BUSINESS IMPACT:\n")
+	details.WriteString("- Customer cannot complete purchase of expensive items\n")
+	details.WriteString("- Revenue loss for high-value transactions\n")
+	details.WriteString("- Poor user experience with unclear error handling\n")
+	details.WriteString("- No alternative checkout flow for expensive items\n\n")
+
+	// Suggested Fixes
+	details.WriteString("SUGGESTED FIXES:\n")
+	details.WriteString("1. IMMEDIATE (Low Risk):\n")
+	details.WriteString("   - Increase checkoutFailureThreshold feature flag value\n")
+	details.WriteString("   - Add better error messaging for users\n")
+	details.WriteString("   - Implement 'Request Manager Approval' workflow\n\n")
+	details.WriteString("2. SHORT TERM (Medium Risk):\n")
+	details.WriteString("   - Add item-category based thresholds\n")
+	details.WriteString("   - Implement split-payment options\n")
+	details.WriteString("   - Add admin override capabilities\n\n")
+	details.WriteString("3. LONG TERM (High Risk):\n")
+	details.WriteString("   - Redesign checkout flow for enterprise customers\n")
+	details.WriteString("   - Implement approval workflows\n")
+	details.WriteString("   - Add payment plan options\n\n")
+
+	// Code References
+	details.WriteString("CODE REFERENCES:\n")
+	details.WriteString("- Main Logic: src/checkout/main.go:621-663 (checkExpensiveItems)\n")
+	details.WriteString("- Feature Flag: src/checkout/main.go:600-620 (getIntFeatureFlag)\n")
+	details.WriteString("- Error Handling: src/checkout/main.go:268-278 (PlaceOrder)\n")
+	details.WriteString("- Frontend: src/frontend/pages/api/checkout.ts\n")
+	details.WriteString("- Support Integration: src/support/main.go:240-350\n\n")
+
+	// Configuration Details
+	details.WriteString("CONFIGURATION:\n")
+	details.WriteString("- Feature Flag Service: Connected\n")
+	details.WriteString(fmt.Sprintf("- Current Threshold: $%d USD\n", priceThreshold))
+	details.WriteString("- Currency Service: Connected\n")
+	details.WriteString("- Support Service: Connected\n\n")
+
+	// Reproduction Steps
+	details.WriteString("REPRODUCTION STEPS:\n")
+	details.WriteString("1. Add item with price > $100 to cart\n")
+	details.WriteString("2. Proceed to checkout\n")
+	details.WriteString("3. Fill in payment/shipping details\n")
+	details.WriteString("4. Click 'Place Order'\n")
+	details.WriteString("5. Observe error: 'Order contains expensive items'\n\n")
+
+	details.WriteString("=== END TECHNICAL REPORT ===\n")
+
+	return details.String()
 }
