@@ -1,0 +1,9 @@
+/Users/jaydave/code/augment_code_interview/opentelemetry-demo/src/shipping/target/debug/deps/libopentelemetry_semantic_conventions-e099dba9f964cf2e.rmeta: /Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/lib.rs /Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/resource.rs /Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/trace.rs
+
+/Users/jaydave/code/augment_code_interview/opentelemetry-demo/src/shipping/target/debug/deps/libopentelemetry_semantic_conventions-e099dba9f964cf2e.rlib: /Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/lib.rs /Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/resource.rs /Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/trace.rs
+
+/Users/jaydave/code/augment_code_interview/opentelemetry-demo/src/shipping/target/debug/deps/opentelemetry_semantic_conventions-e099dba9f964cf2e.d: /Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/lib.rs /Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/resource.rs /Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/trace.rs
+
+/Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/lib.rs:
+/Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/resource.rs:
+/Users/jaydave/.cargo/registry/src/index.crates.io-6f17d22bba15001f/opentelemetry-semantic-conventions-0.14.0/src/trace.rs:
