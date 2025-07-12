@@ -1,0 +1,15 @@
+<h1>Toggle Feature Flags</h1>
+
+<%= for feature_flag <- @featureflags do %>
+  <div>
+    <strong><%= feature_flag.name %></strong>: <%= if feature_flag.enabled > 0, do: "Enabled", else: "Disabled" %>
+    <%= form_for :feature_flag, Routes.feature_flag_path(@conn, :toggle, feature_flag.name), [phx_submit: :toggle], fn f -> %>
+      <%= hidden_input f, :name, value: feature_flag.name %>
+      <label class="switch">
+        <%= checkbox f, :enabled, checked: feature_flag.enabled > 0, value: if(feature_flag.enabled > 0, do: "1.0", else: "0.0"), id: "#{feature_flag.name}" %>
+        <span class="slider round"></span>
+      </label>
+      <%= submit "Save" %>
+    <% end %>
+  </div>
+<% end %>
