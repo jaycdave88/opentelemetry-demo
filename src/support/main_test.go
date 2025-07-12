@@ -11,7 +11,7 @@ import (
 
 func TestBuildJiraDescriptionContent(t *testing.T) {
 	service := &supportService{}
-	
+
 	// Create a sample request
 	req := &pb.CreateSupportRequestRequest{
 		UserId:       "test-user-123",
@@ -91,7 +91,7 @@ func TestBuildJiraDescriptionContent(t *testing.T) {
 func TestJiraContentStructure(t *testing.T) {
 	// Test that our Jira content structures are properly formed
 	service := &supportService{}
-	
+
 	req := &pb.CreateSupportRequestRequest{
 		UserId:      "test-user",
 		Email:       "test@example.com",

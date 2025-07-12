@@ -110,13 +110,14 @@
       "description": "Fail checkout for orders containing items above this price threshold (in USD)",
       "state": "ENABLED",
       "variants": {
+        "500": 500,
         "100": 100,
         "75": 75,
         "50": 50,
         "25": 25,
         "off": 0
       },
-      "defaultVariant": "25"
+      "defaultVariant": "500"
     }
   }
 }
