@@ -1,0 +1,64 @@
+Jira-Slack-Augment-GitHub Integration Workflow
+Task Definition
+Create an automated workflow that:
+
+Sends a Slack notification when a new Jira ticket is created
+Allows users to click on the Slack message to access the Jira ticket
+Enables users to use Augment Code to analyze and fix the issue
+Uses Augment's existing MCP connection to create a GitHub PR
+Notifies the user via Slack when the PR is ready for review
+Approach
+1. Slack Notification for Jira Tickets
+Add a Slack integration to the support service that triggers when a Jira ticket is created
+Configure the notification to include:
+Ticket summary and description
+Direct link to the Jira ticket
+User information
+Severity/priority
+2. Augment Code Integration
+Create a webhook endpoint that can be triggered from Slack
+When a user wants to analyze a ticket with Augment:
+They click a button in the Slack message
+This triggers the webhook with the Jira ticket ID
+The webhook launches Augment Code with context about the ticket
+3. Leveraging Existing MCP Connection
+Instead of creating a new connection to GitHub, use Augment's existing MCP connection
+The webhook should pass control to Augment with sufficient context
+Augment will:
+Read the Jira ticket details
+Analyze relevant code
+Generate fixes
+Use its existing MCP connection to create a PR
+4. PR Creation and Notification
+After Augment creates the PR via MCP:
+Capture the PR URL and details
+Send a follow-up notification to Slack
+Include links to both the original Jira ticket and the new PR
+Allow users to approve/review directly from Slack
+Implementation Considerations
+Authentication and Security:
+Secure the webhook endpoints
+Handle authentication between services
+Manage API tokens securely
+Configuration Management:
+Store integration settings in environment variables
+Allow customization of message templates
+Support different Slack channels for different types of issues
+Error Handling:
+Implement robust error handling
+Provide clear feedback when integrations fail
+Include retry mechanisms for transient failures
+Observability:
+Add OpenTelemetry instrumentation
+Log key events in the workflow
+Create metrics to track workflow effectiveness
+User Experience:
+Design intuitive Slack messages
+Minimize the number of clicks needed
+Provide clear status updates throughout the process
+This approach leverages existing systems and connections rather than building new ones, making it more maintainable and less prone to authentication issues.
+
+Drop files to attach as context
+images (png, jpg, jpeg)
+
+

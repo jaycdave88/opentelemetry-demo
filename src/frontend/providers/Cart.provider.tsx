@@ -40,12 +40,24 @@ const CartProvider = ({ children }: IProps) => {
     [queryClient]
   );
 
-  const { data: cart = { userId: '', items: [] } } = useQuery(['cart', selectedCurrency], () =>
-    ApiGateway.getCart(selectedCurrency)
-  );
-  const addCartMutation = useMutation(ApiGateway.addCartItem, mutationOptions);
-  const emptyCartMutation = useMutation(ApiGateway.emptyCart, mutationOptions);
-  const placeOrderMutation = useMutation(ApiGateway.placeOrder, mutationOptions);
+  const { data: cart = { userId: '', items: [] } } = useQuery({
+    queryKey: ['cart', selectedCurrency],
+    queryFn: () => ApiGateway.getCart(selectedCurrency),
+  });
+  const addCartMutation = useMutation({
+    mutationFn: ApiGateway.addCartItem,
+    ...mutationOptions,
+  });
+
+  const emptyCartMutation = useMutation({
+    mutationFn: ApiGateway.emptyCart,
+    ...mutationOptions,
+  });
+
+  const placeOrderMutation = useMutation({
+    mutationFn: ApiGateway.placeOrder,
+    ...mutationOptions,
+  });
 
   const addItem = useCallback(
     (item: CartItem) => addCartMutation.mutateAsync({ ...item, currencyCode: selectedCurrency }),
@@ -53,7 +65,17 @@ const CartProvider = ({ children }: IProps) => {
   );
   const emptyCart = useCallback(() => emptyCartMutation.mutateAsync(), [emptyCartMutation]);
   const placeOrder = useCallback(
-    (order: PlaceOrderRequest) => placeOrderMutation.mutateAsync({ ...order, currencyCode: selectedCurrency }),
+    async (order: PlaceOrderRequest) => {
+      try {
+        console.log('[Cart Provider] Calling placeOrder with:', order);
+        const result = await placeOrderMutation.mutateAsync({ ...order, currencyCode: selectedCurrency });
+        console.log('[Cart Provider] placeOrder result:', result);
+        return result;
+      } catch (error) {
+        console.log('[Cart Provider] placeOrder error:', error);
+        throw error;
+      }
+    },
     [placeOrderMutation, selectedCurrency]
   );
 
