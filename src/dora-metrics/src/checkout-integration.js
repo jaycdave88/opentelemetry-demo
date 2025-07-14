@@ -17,20 +17,22 @@ class CheckoutIntegration {
           description: "Fail checkout for orders containing items above this price threshold (in USD)",
           state: "ENABLED",
           variants: {
+            "1000": 1000,
+            "500": 500,
             "100": 100,
             "75": 75,
             "50": 50,
             "25": 25,
             "off": 0
           },
-          defaultVariant: "25"
+          defaultVariant: "500"
         }
       };
 
       // Update the flag configuration
-      await this.updateFeatureFlag('checkoutFailureThreshold', '25');
+      await this.updateFeatureFlag('checkoutFailureThreshold', '500');
       
-      console.log('Checkout failure enabled (threshold: $25)');
+      console.log('Checkout failure enabled (threshold: $500)');
       return true;
     } catch (error) {
       console.error('Failed to enable checkout failure:', error.message);
@@ -91,7 +93,7 @@ class CheckoutIntegration {
       
       return {
         success: false,
-        error: 'Order contains expensive items: item OLJCESPC7Z costs $75.00 which exceeds the threshold of $25',
+        error: 'Order contains expensive items: item OLJCESPC7Z costs $600.00 which exceeds the threshold of $500',
         traceId,
         spanId,
         technicalDetails: this.generateTechnicalDetails()
@@ -118,10 +120,10 @@ SEVERITY: HIGH - Business Logic Error
 COMPONENT: Checkout Service (src/checkout/main.go)
 
 ERROR ANALYSIS:
-- Original Error: item OLJCESPC7Z costs $75.00 which exceeds the threshold of $25
+- Original Error: item OLJCESPC7Z costs $600.00 which exceeds the threshold of $500
 - Error Location: checkExpensiveItems() function, line ~650
 - Failure Point: PlaceOrder() method, line ~270
-- Feature Flag: checkoutFailureThreshold = 25
+- Feature Flag: checkoutFailureThreshold = 500
 - Error Type: Business logic validation failure
 
 TRACE CONTEXT:
@@ -202,8 +204,8 @@ MONITORING LINKS:
     const scenarios = {
       'expensive-items': {
         description: 'Items exceed price threshold',
-        threshold: 25,
-        itemPrice: 75
+        threshold: 500,
+        itemPrice: 600
       },
       'payment-failure': {
         description: 'Payment processing failure',
