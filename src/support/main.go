@@ -318,6 +318,20 @@ func (s *supportService) CreateSupportRequest(ctx context.Context, req *pb.Creat
 					))
 				}
 			}
+
+			// Create DORA metrics incident
+			err = s.createDoraIncident(ctx, req, jiraTicketID)
+			if err != nil {
+				logger.Warnf("Failed to create DORA metrics incident: %v", err)
+				span.AddEvent("dora_incident_creation_failed", trace.WithAttributes(
+					attribute.String("error", err.Error()),
+				))
+			} else {
+				logger.Infof("Created DORA metrics incident for Jira ticket: %s", jiraTicketID)
+				span.AddEvent("dora_incident_created", trace.WithAttributes(
+					attribute.String("jira.ticket.id", jiraTicketID),
+				))
+			}
 		}
 	} else {
 		logger.Warnf("Jira not configured - skipping ticket creation. URL=%q, APIToken configured=%t", s.jiraConfig.URL, s.jiraConfig.APIToken != "")
@@ -583,6 +597,61 @@ func (s *supportService) sendSlackNotification(ctx context.Context, req *pb.Crea
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("Slack webhook returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func (s *supportService) createDoraIncident(ctx context.Context, req *pb.CreateSupportRequestRequest, jiraTicketID string) error {
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(
+		attribute.String("dora.incident.jira_ticket_id", jiraTicketID),
+		attribute.String("dora.incident.service", "checkout"),
+	)
+
+	// Build DORA incident payload
+	doraIncident := map[string]interface{}{
+		"title":        req.Subject,
+		"description":  fmt.Sprintf("Support request from user %s: %s\n\nError: %s\n\nJira Ticket: %s", req.UserId, req.Description, req.ErrorMessage, jiraTicketID),
+		"service":      "checkout",
+		"severity":     "high",
+		"source":       "support-request",
+		"jiraTicketId": jiraTicketID,
+		"metadata": map[string]interface{}{
+			"userId":       req.UserId,
+			"email":        req.Email,
+			"errorMessage": req.ErrorMessage,
+		},
+	}
+
+	// Convert to JSON
+	payload, err := json.Marshal(doraIncident)
+	if err != nil {
+		return fmt.Errorf("failed to marshal DORA incident: %v", err)
+	}
+
+	// Create HTTP request to DORA metrics service
+	doraURL := "http://dora-metrics:8081/incidents"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", doraURL, bytes.NewBuffer(payload))
+	if err != nil {
+		return fmt.Errorf("failed to create DORA HTTP request: %v", err)
+	}
+
+	// Set headers
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	// Make request
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to make DORA API request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("DORA API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	return nil
