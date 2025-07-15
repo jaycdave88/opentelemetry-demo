@@ -164,9 +164,14 @@ app.get('/incidents/active', async (req, res) => {
 app.delete('/incidents/reset', async (req, res) => {
   try {
     const clearedCount = incidentManager.resetIncidents();
+
+    // Also reset DORA metrics to initial poor state (red widgets)
+    doraGenerator.resetAugmentStatus();
+
     res.json({
-      message: 'All incidents cleared successfully',
+      message: 'All incidents cleared and DORA metrics reset to initial state',
       clearedCount,
+      augmentReset: true,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

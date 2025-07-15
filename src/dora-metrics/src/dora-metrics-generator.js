@@ -71,20 +71,20 @@ class DoraMetricsGenerator {
   }
 
   generateMetricsForDate(serviceName, date, isPostAugment) {
-    // Base metrics for pre-Augment (VERY poor performance - RED zone)
+    // Base metrics for pre-Augment (EXTREMELY poor performance - DEEP RED zone)
     let baseMetrics = {
-      deploymentFrequency: this.randomBetween(0.02, 0.1), // Once every 10-50 days (TERRIBLE)
-      leadTimeMinutes: this.randomBetween(2880, 10080), // 2-7 days (TERRIBLE)
-      mttrMinutes: this.randomBetween(960, 2880), // 16-48 hours (TERRIBLE)
-      changeFailureRate: this.randomBetween(25, 45) // 25-45% failure rate (TERRIBLE)
+      deploymentFrequency: this.randomBetween(0.01, 0.05), // Once every 20-100 days (CATASTROPHIC)
+      leadTimeMinutes: this.randomBetween(5760, 14400), // 4-10 days (CATASTROPHIC)
+      mttrMinutes: this.randomBetween(1440, 4320), // 24-72 hours (CATASTROPHIC)
+      changeFailureRate: this.randomBetween(35, 60) // 35-60% failure rate (CATASTROPHIC)
     };
 
-    // Service-specific variations (make checkout MUCH worse)
+    // Service-specific variations (make checkout CATASTROPHICALLY worse)
     const serviceMultipliers = {
-      'checkout': { mttr: 2.5, changeFailure: 1.8, deploymentFreq: 0.5, leadTime: 1.5 }, // Checkout is TERRIBLE
-      'payment': { mttr: 1.8, changeFailure: 1.4, deploymentFreq: 0.7, leadTime: 1.3 },
-      'frontend': { deploymentFreq: 0.6, leadTime: 1.4, mttr: 1.3, changeFailure: 1.2 },
-      'cart': { mttr: 1.4, changeFailure: 1.3, deploymentFreq: 0.8, leadTime: 1.2 }
+      'checkout': { mttr: 3.5, changeFailure: 2.2, deploymentFreq: 0.3, leadTime: 2.0 }, // Checkout is CATASTROPHIC
+      'payment': { mttr: 2.2, changeFailure: 1.8, deploymentFreq: 0.5, leadTime: 1.6 },
+      'frontend': { deploymentFreq: 0.4, leadTime: 1.8, mttr: 1.8, changeFailure: 1.6 },
+      'cart': { mttr: 1.8, changeFailure: 1.6, deploymentFreq: 0.6, leadTime: 1.5 }
     };
 
     const multiplier = serviceMultipliers[serviceName] || {};
@@ -233,6 +233,18 @@ class DoraMetricsGenerator {
       incidentResolutionCount: this.incidentResolutionCount,
       metricsImproved: this.augmentActive
     };
+  }
+
+  // Method to reset Augment status for demo purposes
+  resetAugmentStatus() {
+    console.log('🔄 Resetting Augment status to initial state (poor metrics)...');
+    this.augmentActive = false;
+    this.incidentResolutionCount = 0;
+
+    // Regenerate current metrics without improvements (back to poor/red state)
+    this.updateMetrics();
+
+    console.log('✅ Augment status reset - metrics will now show red/poor performance');
   }
 
   // Simulate incident impact on metrics
