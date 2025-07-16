@@ -1,0 +1,59 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+type: Test
+spec:
+  id: checkout-expensive-items-threshold
+  name: 'Checkout: expensive items threshold test'
+  description: Test that expensive items can be processed when threshold is set to 500 USD
+  trigger:
+    type: grpc
+    grpc:
+      protobufFile: ../../../pb/demo.proto
+      address: ${var:CHECKOUT_ADDR}
+      method: oteldemo.CheckoutService.PlaceOrder
+      request: |-
+        {
+          "userId": "1997",
+          "userCurrency": "USD",
+          "address": {
+            "streetAddress": "410 Terry Ave. North",
+            "city": "Seattle",
+            "state": "Washington",
+            "country": "United States",
+            "zipCode": "98109"
+          },
+          "email": "test-expensive@example.com",
+          "creditCard": {
+            "creditCardNumber": "4117-7059-6121-5486",
+            "creditCardCvv": 346,
+            "creditCardExpirationYear": 2025,
+            "creditCardExpirationMonth": 3
+          }
+        }
+  specs:
+  - name: It returns a valid order for expensive items under 500 USD threshold
+    selector: span[tracetest.span.type="general" name="Tracetest trigger"]
+    assertions:
+    - attr:tracetest.response.body | json_path '$.order.orderId' != ""
+    - attr:tracetest.response.body | json_path '$.order.shippingTrackingId' != ""
+    - attr:tracetest.response.body | json_path '$.order.shippingAddress' != "{}"
+    - attr:tracetest.response.body | json_path '$.order.shippingCost.currencyCode' = "USD"
+  - name: It calls the PlaceOrder method successfully with expensive items
+    selector: span[tracetest.span.type="rpc" name="oteldemo.CheckoutService/PlaceOrder"
+      rpc.system="grpc" rpc.method="PlaceOrder" rpc.service="oteldemo.CheckoutService"]
+    assertions:
+    - attr:rpc.grpc.status_code = 0
+  - name: It processes expensive items without threshold violation
+    selector: span[tracetest.span.type="rpc" name="oteldemo.CheckoutService/PlaceOrder"
+      rpc.system="grpc" rpc.method="PlaceOrder" rpc.service="oteldemo.CheckoutService"]
+    assertions:
+    - attr:app.checkout.price_threshold = 500
+  - name: It does not trigger expensive items failure event
+    selector: span[name="checkout_failed_expensive_items"]
+    assertions:
+    - attr:tracetest.selected_spans.count = 0
+  - name: It sends an order to be processed asynchronously
+    selector: span[tracetest.span.type="messaging" name="orders publish" kind="producer" messaging.system="kafka" messaging.destination.name="orders" messaging.operation="publish"]
+    assertions:
+    - attr:messaging.destination.name = "orders"
