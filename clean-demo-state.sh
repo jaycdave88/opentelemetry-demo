@@ -23,8 +23,27 @@ cleared_count=$(echo "$response" | jq -r '.clearedCount // 0')
 
 echo "✅ Cleared $cleared_count artificial incidents"
 
+# Restart dora-metrics container to ensure changes are reflected
+echo "🔄 Restarting dora-metrics container to apply changes..."
+if docker restart dora-metrics > /dev/null 2>&1; then
+    echo "✅ Successfully restarted dora-metrics container"
+    # Wait a moment for the service to be ready
+    sleep 3
+else
+    echo "⚠️  Warning: Could not restart dora-metrics container (may not be running in Docker)"
+fi
+
 # Verify clean state
 echo "🔍 Verifying clean state..."
+# Wait for service to be fully ready after restart
+echo "⏳ Waiting for service to be ready..."
+for i in {1..10}; do
+    if curl -s "$DORA_METRICS_URL/health" > /dev/null; then
+        break
+    fi
+    sleep 1
+done
+
 active_incidents=$(curl -s "$DORA_METRICS_URL/incidents/active" | jq '. | length')
 improvement_status=$(curl -s "$DORA_METRICS_URL/demo/status" | jq -r '.improvementStatus.augmentActive')
 
