@@ -8,3 +8,4 @@ spec:
   description: Run all Checkout Service tests enabled in sequence
   steps:
   - ./place-order.yaml
+  - ./expensive-items-threshold.yaml
