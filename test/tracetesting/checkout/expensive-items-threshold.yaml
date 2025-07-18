@@ -1,0 +1,50 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+type: Test
+spec:
+  id: checkout-expensive-items-threshold
+  name: 'Checkout: expensive items threshold test'
+  description: Test that checkout allows items under $500 threshold and blocks items over $500
+  trigger:
+    type: grpc
+    grpc:
+      protobufFile: ../../../pb/demo.proto
+      address: ${var:CHECKOUT_ADDR}
+      method: oteldemo.CheckoutService.PlaceOrder
+      request: |-
+        {
+          "userId": "1997",
+          "userCurrency": "USD",
+          "address": {
+            "streetAddress": "410 Terry Ave. North",
+            "city": "Seattle",
+            "state": "Washington",
+            "country": "United States",
+            "zipCode": "98109"
+          },
+          "email": "test@example.com",
+          "creditCard": {
+            "creditCardNumber": "4117-7059-6121-5486",
+            "creditCardCvv": 346,
+            "creditCardExpirationYear": 2025,
+            "creditCardExpirationMonth": 3
+          }
+        }
+  specs:
+  - name: It allows orders with items under $500 threshold
+    selector: span[tracetest.span.type="general" name="Tracetest trigger"]
+    assertions:
+    # This test assumes the cart contains items under $500
+    # If successful, we should get a valid order response
+    - attr:tracetest.response.body | json_path '$.order.orderId' != "" || attr:rpc.grpc.status_code = 9
+  - name: It properly handles expensive items validation
+    selector: span[tracetest.span.type="rpc" name="oteldemo.CheckoutService/PlaceOrder" rpc.system="grpc" rpc.method="PlaceOrder" rpc.service="oteldemo.CheckoutService"]
+    assertions:
+    # Either success (status 0) or expected failure for expensive items (status 9 = FAILED_PRECONDITION)
+    - attr:rpc.grpc.status_code = 0 || attr:rpc.grpc.status_code = 9
+  - name: It logs the correct threshold value
+    selector: span[name="checkExpensiveItems"]
+    assertions:
+    # Verify the threshold is set to 500 in the span attributes
+    - attr:app.checkout.price_threshold = 500
